@@ -1,24 +1,26 @@
-FROM openeuler/openeuler:23.03 as BUILDER
-RUN dnf update -y && \
-    dnf install -y golang && \
-    go env -w GOPROXY=https://goproxy.cn,direct
+FROM openeuler/go:1.23.4-oe2403lts as BUILDER
+RUN dnf -y install git gcc
 
-MAINTAINER zengchen1024<chenzeng765@gmail.com>
+ARG USER
+ARG PASS
+RUN echo "machine github.com login $USER password $PASS" > ~/.netrc
 
 # build binary
-WORKDIR /go/src/github.com/opensourceways/robot-gitee-keeper-approve
+WORKDIR /opt/source
 COPY . .
-RUN GO111MODULE=on CGO_ENABLED=0 go build -a -o robot-gitee-keeper-approve .
+RUN go env -w GO111MODULE=on && \
+    go env -w CGO_ENABLED=1 && \
+    go build -a -o robot-gitee-keeper-approve -buildmode=pie -ldflags "-s -linkmode 'external' -extldflags '-Wl,-z,now'" .
 
 # copy binary config and utils
-FROM openeuler/openeuler:22.03
-RUN dnf -y update && \
+FROM openeuler/openeuler:24.03-lts
+RUN dnf -y upgrade && \
     dnf in -y shadow && \
-    groupadd -g 1000 robot-gitee-keeper-approve && \
-    useradd -u 1000 -g robot-gitee-keeper-approve -s /bin/bash -m robot-gitee-keeper-approve
+    groupadd -g 1000 robot && \
+    useradd -u 1000 -g robot -s /bin/bash -m robot
 
-USER robot-gitee-keeper-approve
+USER robot
 
-COPY  --chown=robot-gitee-keeper-approve --from=BUILDER /go/src/github.com/opensourceways/robot-gitee-keeper-approve/robot-gitee-keeper-approve /opt/app/robot-gitee-keeper-approve
+COPY --chown=robot --from=BUILDER /opt/source/robot-gitee-keeper-approve /opt/app/robot-gitee-keeper-approve
 
 ENTRYPOINT ["/opt/app/robot-gitee-keeper-approve"]
