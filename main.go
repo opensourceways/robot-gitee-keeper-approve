@@ -61,6 +61,8 @@ func main() {
 		logrus.WithError(err).Fatal("Invalid options")
 	}
 
+	token := GetSecret(o.gitee.TokenPath)
+
 	c := giteeclient.NewClient(GetTokenGenerator(o.gitee.TokenPath))
 
 	if err := os.Remove(o.gitee.TokenPath); err != nil {
@@ -72,7 +74,7 @@ func main() {
 		logrus.WithError(err).Error("Error get bot name")
 	}
 
-	r := newRobot(c, v.Login)
+	r := newRobot(c, v.Login, string(token))
 
 	framework.Run(r, o.service)
 }

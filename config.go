@@ -4,6 +4,7 @@ import "github.com/opensourceways/community-robot-lib/config"
 
 type configuration struct {
 	ConfigItems []botConfig `json:"config_items,omitempty"`
+	TagName     string      `json:"tag_name,omitempty"`
 }
 
 func (c *configuration) configFor(org, repo string) *botConfig {

@@ -34,11 +34,12 @@ type iClient interface {
 	RemovePRLabel(org, repo string, number int32, label string) error
 }
 
-func newRobot(cli iClient, botName string) *robot {
-	return &robot{cli: ghclient{cli}, botName: botName}
+func newRobot(cli iClient, botName string, token string) *robot {
+	return &robot{cli: ghclient{cli}, botName: botName, token: token}
 }
 
 type robot struct {
+	token   string
 	cli     ghclient
 	botName string
 }
@@ -51,7 +52,7 @@ func (bot *robot) RegisterEventHandler(f framework.HandlerRegitster) {
 	f.RegisterNoteEventHandler(bot.handleNoteEvent)
 }
 
-func (bot *robot) handleNoteEvent(e *sdk.NoteEvent, c config.Config, log *logrus.Entry) error {
+func (bot *robot) handleNoteEvent(e *sdk.NoteEvent, cnf config.Config, log *logrus.Entry) error {
 	if !e.IsPullRequest() {
 		log.Info("Event is not a creation of a comment on a PR, skipping.")
 		return nil
@@ -67,35 +68,48 @@ func (bot *robot) handleNoteEvent(e *sdk.NoteEvent, c config.Config, log *logrus
 		return nil
 	}
 
+	c, ok := cnf.(*configuration)
+	if !ok {
+		return fmt.Errorf("can't convert to configuration")
+	}
+
+	tagName := c.TagName
+	if tagName == "" {
+		tagName = "keeper_approved"
+	}
+
 	org, repo := e.GetOrgRepo()
 	number := e.GetPRNumber()
 
-	var owners []string
-	token := string(sdk.ContextOAuth2)
-	_ = loadOwnersInfo(org, repo, token, &owners)
+	var keepers []string
+	token := bot.token
+	err := loadOwnersInfo(org, repo, token, &keepers)
+	if err != nil {
+		return nil
+	}
 
 	commenter := e.GetCommenter()
 
-	if !isBranchKeeper(commenter, owners) {
-		log.Info("Event is not a branch keeper, skipping.")
+	if !isBranchKeeper(commenter, keepers) {
+		log.Info("Commenter is not a branch keeper, skipping.")
 		return nil
 	} else {
-		return bot.cli.AddLabel(org, repo, number, "keeper_approved")
+		return bot.cli.AddLabel(org, repo, number, tagName)
 	}
 }
 
 func loadOwnersInfo(org, repo, token string, keeper *[]string) error {
-	url := fmt.Sprintf("https://gitee.com/api/v5/repos/%s/owners_collections/raw/%s/OWNERS?access_token=%s", org, repo, token)
+	url := fmt.Sprintf("https://gitee.com/api/v5/repos/%s/%s/raw/OWNERS?access_token=%s", org, repo, token)
 	resp, err := http.Get(url)
 	if err != nil {
 		logrus.Info("request owners file failure...")
-		return nil
+		return err
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		logrus.Info("Error reading request body")
-		return nil
+		return err
 	}
 
 	var owners Owners
@@ -105,9 +119,9 @@ func loadOwnersInfo(org, repo, token string, keeper *[]string) error {
 
 	if err != nil {
 		logrus.Info("Error unmarshalling body")
-		return nil
+		return err
 	}
-	keeper = &owners.BranchKeeper
+	*keeper = owners.BranchKeeper
 	return nil
 }
 
