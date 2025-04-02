@@ -99,7 +99,7 @@ func (bot *robot) handleNoteEvent(e *sdk.NoteEvent, cnf config.Config, log *logr
 }
 
 func loadOwnersInfo(org, repo, token string, keeper *[]string) error {
-	url := fmt.Sprintf("https://gitee.com/api/v5/repos/%s/%s/raw/OWNERS?access_token=%s", org, repo, token)
+	url := fmt.Sprintf("https://gitee.com/api/v5/repos/%s/%s/raw/OWNERS?access_token=%s&ref=br_develop_mindie", org, repo, token)
 	resp, err := http.Get(url)
 	if err != nil {
 		logrus.Info("request owners file failure...")
