@@ -2,11 +2,12 @@ package main
 
 import (
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"net/http"
 	"regexp"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 
 	"github.com/opensourceways/community-robot-lib/config"
 	framework "github.com/opensourceways/community-robot-lib/robot-gitee-framework"
@@ -15,8 +16,8 @@ import (
 )
 
 const (
-	botName        = "keeper-approve"
-	approveCommand = "APPROVE"
+	botName      = "keeper-approve"
+	mergeCommand = "MERGE"
 )
 
 type Owners struct {
@@ -63,8 +64,8 @@ func (bot *robot) handleNoteEvent(e *sdk.NoteEvent, cnf config.Config, log *logr
 		return nil
 	}
 
-	if !isApproveCommand(e.Comment.Body) {
-		log.Info("Event is not a approve comment, skipping.")
+	if !isMergeCommand(e.Comment.Body) {
+		log.Info("Event is not a merge comment, skipping.")
 		return nil
 	}
 
@@ -134,11 +135,11 @@ func isBranchKeeper(commenter string, keeps []string) bool {
 	return false
 }
 
-func isApproveCommand(comment string) bool {
+func isMergeCommand(comment string) bool {
 	for _, match := range commandReg.FindAllStringSubmatch(comment, -1) {
 		cmd := strings.ToUpper(match[1])
 
-		if cmd == approveCommand {
+		if cmd == mergeCommand {
 			return true
 		}
 	}
