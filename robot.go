@@ -81,10 +81,11 @@ func (bot *robot) handleNoteEvent(e *sdk.NoteEvent, cnf config.Config, log *logr
 
 	org, repo := e.GetOrgRepo()
 	number := e.GetPRNumber()
+	targetBranch := e.GetPRBaseRef()
 
 	var keepers []string
 	token := bot.token
-	err := loadOwnersInfo(org, repo, token, &keepers)
+	err := loadOwnersInfo(org, repo, token, targetBranch, &keepers)
 	if err != nil {
 		return nil
 	}
@@ -99,8 +100,8 @@ func (bot *robot) handleNoteEvent(e *sdk.NoteEvent, cnf config.Config, log *logr
 	}
 }
 
-func loadOwnersInfo(org, repo, token string, keeper *[]string) error {
-	url := fmt.Sprintf("https://gitee.com/api/v5/repos/%s/%s/raw/OWNERS?access_token=%s&ref=br_develop_mindie", org, repo, token)
+func loadOwnersInfo(org, repo, token, targetBranch string, keeper *[]string) error {
+	url := fmt.Sprintf("https://gitee.com/api/v5/repos/%s/%s/raw/OWNERS?access_token=%s&ref=%s", org, repo, token, targetBranch)
 	resp, err := http.Get(url)
 	if err != nil {
 		logrus.Info("request owners file failure...")
